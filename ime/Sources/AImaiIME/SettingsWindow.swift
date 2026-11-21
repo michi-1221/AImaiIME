@@ -53,7 +53,6 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
 
 /// 設定ウィンドウの表示内容。読み書きは AIMECore の `Settings.load` / `SettingsEditor`。
 final class SettingsViewModel: ObservableObject {
-    @Published var inputMode: InputMode = .marked
     @Published var convertKey: ConvertKey = .defaultKey
     @Published var fullWidthDigits = false
     @Published var candidateCount = Settings.defaultCandidateCount
@@ -72,7 +71,6 @@ final class SettingsViewModel: ObservableObject {
 
     func reload() {
         let s = Settings.load(from: defaults)
-        inputMode = s.inputMode
         convertKey = s.convertKey
         fullWidthDigits = s.postProcess.fullWidthDigits
         candidateCount = s.candidateCount
@@ -92,11 +90,6 @@ final class SettingsViewModel: ObservableObject {
                 self.modelWarning = warning
             }
         }
-    }
-
-    func setInputMode(_ mode: InputMode) {
-        SettingsEditor.setInputMode(mode, in: defaults)
-        reload()
     }
 
     func startRecording() {
@@ -123,6 +116,14 @@ final class SettingsViewModel: ObservableObject {
     func cancelRecording() {
         isRecording = false
         recordMessage = nil
+    }
+
+    /// 記録中に、修飾キーが単独で1回押された。保存して記録を終える。
+    func recordModifier(_ key: ModifierKey) {
+        let saved = SettingsEditor.recordModifierKey(key, in: defaults)
+        isRecording = false
+        reload()
+        recordMessage = "\(saved.displayString) を変換キーにしました。"
     }
 
     func resetConvertKey() {
@@ -183,32 +184,15 @@ struct SettingsView: View {
                 }
             }
 
-            Section("入力の方式") {
-                Picker("入力の方式", selection: Binding(get: { model.inputMode }, set: { model.setInputMode($0) })) {
-                    VStack(alignment: .leading) {
-                        Text("未確定文字モード")
-                        Text("打ったローマ字は下線付きの未確定文字になり、変換キーで変換、Enter などで確定します。")
-                            .font(.caption).foregroundStyle(.secondary)
-                    }.tag(InputMode.marked)
-                    VStack(alignment: .leading) {
-                        Text("直接モード")
-                        Text("打鍵はすぐ確定し、変換キーでカーソル直前のローマ字を置き換えます。")
-                            .font(.caption).foregroundStyle(.secondary)
-                    }.tag(InputMode.direct)
-                }
-                .pickerStyle(.radioGroup)
-                .labelsHidden()
-            }
-
-            Section("変換キー（両モード共通）") {
+            Section("変換キー") {
                 HStack {
                     KeyRecorderField(model: model)
                         .frame(width: 180, height: 26)
                     Button("既定に戻す（Space）") { model.resetConvertKey() }
                 }
                 Text(model.isRecording
-                     ? "変換キーにしたい組み合わせを押してください（Esc で取り消し）。"
-                     : "枠をクリックしてから、変換キーにしたい組み合わせを押してください（Esc で取り消し）。")
+                     ? "変換キーにしたい組み合わせを押してください。修飾キーだけなら、そのキーを単独で1回押して離してください（Esc で取り消し）。"
+                     : "枠をクリックしてから、変換キーにしたい組み合わせを押してください。修飾キー（左右の ⌘ ⌥ ⌃ ⇧）だけなら、そのキーを単独で1回押して離してください（Esc で取り消し）。")
                     .font(.caption).foregroundStyle(.secondary)
                 if let message = model.recordMessage {
                     Text(message).font(.caption)
@@ -256,6 +240,7 @@ struct KeyRecorderField: NSViewRepresentable {
     func makeNSView(context: Context) -> KeyRecorderView {
         let v = KeyRecorderView()
         v.onRecord = { code, mods in model.record(keyCode: code, modifiers: mods) }
+        v.onRecordModifier = { key in model.recordModifier(key) }
         v.onStart = { model.startRecording() }
         v.onCancel = { model.cancelRecording() }
         return v
@@ -271,6 +256,8 @@ struct KeyRecorderField: NSViewRepresentable {
 final class KeyRecorderView: NSView {
     /// 記録中に押されたキー。記録を終えたら true を返す。
     var onRecord: ((UInt16, KeyModifiers) -> Bool)?
+    /// 記録中に、修飾キーが単独で1回押されたとき
+    var onRecordModifier: ((ModifierKey) -> Void)?
     var onStart: (() -> Void)?
     var onCancel: (() -> Void)?
     var label = ""
@@ -278,7 +265,11 @@ final class KeyRecorderView: NSView {
 
     override var acceptsFirstResponder: Bool { true }
 
+    /// 記録中の、修飾キーの単独押しの判定（どの修飾キーでもよい）
+    private var modifierTap = ModifierTap()
+
     override func mouseDown(with event: NSEvent) {
+        modifierTap.cancel()
         window?.makeFirstResponder(self)
         onStart?()
     }
@@ -291,6 +282,7 @@ final class KeyRecorderView: NSView {
 
     /// 記録中のキーを処理する。
     private func handleRecording(_ event: NSEvent) {
+        modifierTap.keyDown()
         let mods = KeyModifiers(modifierFlagsRawValue: event.modifierFlags.rawValue)
         if event.keyCode == KeyStroke.Code.escape && mods.isEmpty {
             onCancel?()
@@ -311,7 +303,19 @@ final class KeyRecorderView: NSView {
         window?.makeFirstResponder(nil)
     }
 
+    override func flagsChanged(with event: NSEvent) {
+        guard recording else { return super.flagsChanged(with: event) }
+        let times = SystemInputTimes.current()
+        if let key = modifierTap.flagsChanged(keyCode: event.keyCode, rawFlags: event.modifierFlags.rawValue,
+                                              timestamp: event.timestamp, lastKeyDownAt: times.lastKeyDownAt,
+                                              lastMouseDownAt: times.lastMouseDownAt, lastScrollAt: times.lastScrollAt) {
+            onRecordModifier?(key)
+            endRecording()
+        }
+    }
+
     override func keyDown(with event: NSEvent) {
+        modifierTap.keyDown()
         guard recording else { return super.keyDown(with: event) }
         // 記録中はここで受け取って止める（ほかへは送らない）
         handleRecording(event)

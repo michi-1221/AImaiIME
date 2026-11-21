@@ -3,7 +3,7 @@ import Carbon.HIToolbox
 import XCTest
 @testable import AIMECore
 
-// 変換キー Space の動作、Orca 対策（打鍵バッファとの照合・アプリ単位の記憶）、キー番号・修飾キーの照合のテスト。
+// 変換キー Space の動作、キー番号・修飾キーの照合のテスト。
 
 final class SpaceConvertKeyTests: XCTestCase {
     private let space = KeyStroke(keyCode: 49, characters: " ")
@@ -54,115 +54,6 @@ final class SpaceConvertKeyTests: XCTestCase {
         XCTAssertEqual(press(&c, space, .tab), ComposerOutput(commit: "k", passKey: true))
     }
 
-    func testDirectModeRouteWithSpace() {
-        func route(_ k: KeyStroke, empty: Bool = true, method: FieldMethod) -> DirectKeyRoute {
-            DirectKeyRoute.route(k, convertKey: .space, composerIsEmpty: empty) { method }
-        }
-        // 置き換えの欄: Space は変換キー（ローマ字列がなければ、変換の処理の中でそのまま通す）
-        XCTAssertEqual(route(space, method: .replace), .convert)
-        XCTAssertEqual(route(tab, method: .replace), .passThrough)
-        // 未確定文字の方式の欄で未確定文字がないとき: Space はそのまま通す
-        XCTAssertEqual(route(space, method: .marked), .passThrough)
-    }
-
-    func testDirectModeSpaceWithoutRomajiPasses() {
-        // 直前が日本語・空白・行頭なら変換するものがない → Space はそのまま通す（.nothingToConvert）
-        for text in ["今日は", "foo ", ""] {
-            let c = FakeClient(text)
-            XCTAssertEqual(ReplacementPlanner.outcome(selectedRange: c.cursorAtEnd, buffer: TypingBuffer(), fetch: c.fetch),
-                           .nothingToConvert, text)
-        }
-    }
-}
-
-final class BufferConsistencyTests: XCTestCase {
-    private func buffer(_ text: String, at start: Int) -> TypingBuffer {
-        var b = TypingBuffer()
-        var loc = start
-        for ch in text {
-            b.append(String(ch), cursorLocation: loc)
-            loc += String(ch).utf16.count
-        }
-        return b
-    }
-
-    func testConsistentWhenClientReturnsTypedText() {
-        let b = buffer("kyouha", at: 3)
-        let c = FakeClient("今日はkyouha")
-        XCTAssertEqual(BufferConsistency.check(buffer: b, selectedRange: c.cursorAtEnd, fetch: c.fetch), .consistent)
-    }
-
-    func testMismatchWhenClientReturnsHiddenFieldContents() {
-        // Orca のように、隠し入力欄の中身（直近の1文字だけなど）を返す
-        let b = buffer("kyouha", at: 0)
-        let hidden = FakeClient("xxxxxa") // 位置は合っているが中身が違う
-        XCTAssertEqual(BufferConsistency.check(buffer: b, selectedRange: hidden.cursorAtEnd, fetch: hidden.fetch), .mismatch)
-    }
-
-    func testMismatchWhenLocationDoesNotAdvance() {
-        // 入力のたびに隠し入力欄が空になり、位置が戻る
-        let b = buffer("ky", at: 0)
-        XCTAssertEqual(BufferConsistency.check(buffer: b, selectedRange: NSRange(location: 1, length: 0), fetch: { _ in "y" }), .mismatch)
-    }
-
-    func testMismatchWhenRangeCannotBeFetched() {
-        let b = buffer("kyou", at: 0)
-        let c = FakeClient("kyou", maxFetchLength: 1)
-        XCTAssertEqual(BufferConsistency.check(buffer: b, selectedRange: c.cursorAtEnd, fetch: c.fetch), .mismatch)
-    }
-
-    func testNotApplicable() {
-        let c = FakeClient("abc")
-        XCTAssertEqual(BufferConsistency.check(buffer: TypingBuffer(), selectedRange: c.cursorAtEnd, fetch: c.fetch), .notApplicable)
-        let b = buffer("abc", at: 0)
-        XCTAssertEqual(BufferConsistency.check(buffer: b, selectedRange: nil, fetch: c.fetch), .notApplicable)
-        XCTAssertEqual(BufferConsistency.check(buffer: b, selectedRange: NSRange(location: 1, length: 2), fetch: c.fetch), .notApplicable)
-    }
-
-    func testComparesOnlyTheTailAndKeepsSurrogatePairs() {
-        // 長いバッファは末尾（最大 16 UTF-16 単位）だけ比べる。サロゲートペアは割らない
-        let typed = String(repeating: "a", count: 30) + "😀" + String(repeating: "b", count: 15)
-        let b = buffer(typed, at: 0)
-        let c = FakeClient(typed)
-        var asked: [NSRange] = []
-        XCTAssertEqual(BufferConsistency.check(buffer: b, selectedRange: c.cursorAtEnd) { r in asked.append(r); return c.fetch(r) }, .consistent)
-        XCTAssertEqual(asked.first?.length, 15) // 😀（2）を足すと 17 になるので、b の 15 個だけ
-    }
-}
-
-final class AppModeMemoryTests: XCTestCase {
-    func testRemembersFailedApps() {
-        var m = AppModeMemory()
-        XCTAssertFalse(m.startsMarked(bundleID: "com.example.orca"))
-        m.markUnsupported(bundleID: "com.example.orca")
-        XCTAssertTrue(m.startsMarked(bundleID: "com.example.orca"))
-        XCTAssertFalse(m.startsMarked(bundleID: "com.apple.TextEdit"))
-        // bundle ID が取れないときは覚えない・効かない
-        m.markUnsupported(bundleID: nil)
-        m.markUnsupported(bundleID: "")
-        XCTAssertEqual(m.unsupportedApps, ["com.example.orca"])
-        XCTAssertFalse(m.startsMarked(bundleID: nil))
-    }
-
-    func testMemoryAppliesToTheNextField() {
-        var memory = AppModeMemory()
-        var field = FieldModeState()
-        // 1回目: Orca にフォーカス。直前1文字は取れるので置き換えと誤判定する
-        field.reset(lockedToMarked: memory.startsMarked(bundleID: "com.example.orca"))
-        XCTAssertEqual(field.method { .supported }, .replace)
-        // 打鍵バッファとの食い違いを検出 → 欄もアプリも未確定文字へ
-        field.markUnsupported()
-        memory.markUnsupported(bundleID: "com.example.orca")
-        XCTAssertEqual(field.method { .supported }, .marked)
-        // 別のアプリに移る（記憶がないので置き換え）
-        field.reset(lockedToMarked: memory.startsMarked(bundleID: "com.apple.TextEdit"))
-        XCTAssertEqual(field.method { .supported }, .replace)
-        // Orca に戻ってくる: 最初から未確定文字
-        field.reset(lockedToMarked: memory.startsMarked(bundleID: "com.example.orca"))
-        XCTAssertTrue(field.lockedToMarked)
-        XCTAssertEqual(field.lastMethod, .marked)
-        XCTAssertEqual(field.method { .supported }, .marked)
-    }
 }
 
 final class KeyCodeAndModifierTests: XCTestCase {

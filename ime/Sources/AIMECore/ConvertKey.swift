@@ -1,8 +1,8 @@
 import Foundation
 
-/// 変換キー（設定 `convertKey`。未確定文字モードと直接モードで共通。既定は `space`）。
+/// 変換キー（設定 `convertKey`。既定は `space`）。
 ///
-/// 書式: 修飾キーとキーを `+` でつなぐ（大文字・小文字は区別しない、空白は無視）。例: `space`、`tab`、`option+space`、`ctrl+j`、`f13`。
+/// 書式: `rightcmd`・`leftoption` などの修飾キー単独（`ModifierKey`）のほかは、修飾キーとキーを `+` でつなぐ（大文字・小文字は区別しない、空白は無視）。例: `space`、`tab`、`option+space`、`ctrl+j`、`f13`。
 /// - 修飾キー: `cmd`（`command`）、`ctrl`（`control`）、`opt`（`option`、`alt`）、`shift`
 /// - キー: `space`、`tab`、`return`（`enter`）、`esc`（`escape`）、`f1`〜`f20`、`a`〜`z`、`0`〜`9`
 /// - 打鍵と区別できないものは受け付けない:
@@ -18,6 +18,17 @@ public struct ConvertKey: Equatable, CustomStringConvertible {
 
     public static let tab = ConvertKey(keyCode: KeyStroke.Code.tab, modifiers: [], description: "tab")
     public static let space = ConvertKey(keyCode: KeyStroke.Code.space, modifiers: [], description: "space")
+    /// 修飾キーを単独で1回押す（書式 `rightcmd`、`leftoption`、`rightshift` など）。押して離すまでの間にほかのキーやクリックがあったとき、
+    /// 0.5 秒を超えて押していたときは変換しない。キーの押下（keyDown）ではなく修飾キーの変化（flagsChanged）で見分けるので、
+    /// `matches` は実際の打鍵では true にならない（IME が単独押しを見分けたときに作る擬似的な打鍵でだけ true になる）。
+    public static func modifierOnly(_ key: ModifierKey) -> ConvertKey {
+        ConvertKey(keyCode: key.keyCode, modifiers: [], description: key.name)
+    }
+    /// 単独で押す修飾キー（そうでなければ nil）
+    public var modifierKey: ModifierKey? {
+        guard modifiers.isEmpty, let m = ModifierKey(keyCode: keyCode), m.name == description else { return nil }
+        return m
+    }
     /// 既定の変換キー
     public static let defaultKey = ConvertKey.space
 
@@ -57,6 +68,7 @@ public struct ConvertKey: Equatable, CustomStringConvertible {
         guard let text else { return nil }
         let parts = text.lowercased().split(separator: "+", omittingEmptySubsequences: false)
             .map { $0.trimmingCharacters(in: .whitespaces) }
+        if parts.count == 1, let m = ModifierKey(name: parts[0]) { return .modifierOnly(m) }
         guard let keyName = parts.last, !keyName.isEmpty, let (code, _) = keys[keyName] else { return nil }
         var mods: KeyModifiers = []
         for name in parts.dropLast() {
@@ -127,6 +139,7 @@ public struct ConvertKey: Equatable, CustomStringConvertible {
 
     /// 表示用の文字列（例: "⌃J"、"⌥Space"、"Tab"、"F13"）。修飾キーは macOS の順（⌃⌥⇧⌘）。
     public var displayString: String {
+        if let m = modifierKey { return m.displayName }
         var s = ""
         if modifiers.contains(.control) { s += "⌃" }
         if modifiers.contains(.option) { s += "⌥" }
@@ -139,6 +152,9 @@ public struct ConvertKey: Equatable, CustomStringConvertible {
     /// アプリや macOS の操作と重なりうるときの注意（なければ nil）。
     public var conflictNote: String? {
         let name = description.split(separator: "+").last.map(String.init) ?? ""
+        if let m = modifierKey {
+            return "\(m.displayName) を単独で1回押したときに変換します。押している間にほかのキー・クリックがあったとき、0.5 秒を超えて押していたときは変換しません。"
+        }
         if modifiers == .control && name == "space" {
             return "⌃Space は macOS の「前の入力ソースを選択」と重なり、IME まで届かないことがあります。"
         }
@@ -152,7 +168,7 @@ public struct ConvertKey: Equatable, CustomStringConvertible {
             return "space: 英単語を空白で区切って打つと、空白のたびに直前の英字が変換されます。"
         }
         if modifiers.isEmpty && name == "tab" {
-            return "Tab: 変換できるとき（直接モードでは英字の直後、未確定文字モードでは未確定文字があるとき）の Tab が変換に使われ、アプリの Tab（補完・字下げ・次の欄への移動）と重なります。"
+            return "Tab: 未確定文字があるときの Tab が変換に使われ、アプリの Tab（補完・字下げ・次の欄への移動）と重なります。"
         }
         if modifiers.contains(.command) {
             return "⌘ との組み合わせは、アプリのメニューのショートカットと重なることがあります。"

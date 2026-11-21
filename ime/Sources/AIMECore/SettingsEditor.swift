@@ -3,14 +3,9 @@ import Foundation
 /// 設定ウィンドウからの変更を UserDefaults に書く（`Settings.load` と同じキー・書式）。
 /// 書いた値は、IME が次の打鍵で `Settings.load` を読むときに反映される。
 public enum SettingsEditor {
-    public static func setInputMode(_ mode: InputMode, in defaults: UserDefaults = .standard) {
-        replace(mode.rawValue, forKey: Settings.Key.inputMode, in: defaults)
-    }
-
-    /// 変換キーを保存する（両モード共通の `convertKey`。以前の `directConvertKey` は消す）。
+    /// 変換キーを保存する（`convertKey`）。
     public static func setConvertKey(_ key: ConvertKey, in defaults: UserDefaults = .standard) {
         replace(key.description, forKey: Settings.Key.convertKey, in: defaults)
-        defaults.removeObject(forKey: Settings.Key.legacyDirectConvertKey)
     }
 
     /// 記録したキーを検証し、受け付けられれば保存する。受け付けなければ保存せずに理由を返す。
@@ -24,10 +19,17 @@ public enum SettingsEditor {
         return result
     }
 
+    /// 単独で押した修飾キー（左右を区別）を変換キーとして保存する。
+    @discardableResult
+    public static func recordModifierKey(_ key: ModifierKey, in defaults: UserDefaults = .standard) -> ConvertKey {
+        let convertKey = ConvertKey.modifierOnly(key)
+        setConvertKey(convertKey, in: defaults)
+        return convertKey
+    }
+
     /// 既定（Space）に戻す。
     public static func resetConvertKey(in defaults: UserDefaults = .standard) {
         defaults.removeObject(forKey: Settings.Key.convertKey)
-        defaults.removeObject(forKey: Settings.Key.legacyDirectConvertKey)
     }
 
     public static func setFullWidthDigits(_ on: Bool, in defaults: UserDefaults = .standard) {

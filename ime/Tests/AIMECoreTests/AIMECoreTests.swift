@@ -69,7 +69,7 @@ final class CandidateCycleTests: XCTestCase {
         var c = CandidateCycle(romaji: "kyouha", leftContext: "", first: "今日は")
         XCTAssertEqual(c.currentText, "今日は")
         c.setCandidates(["今日は", "京は", "強は"])
-        XCTAssertEqual((0..<5).map { _ in c.advance().text }, ["京は", "強は", "kyouha", "今日は", "京は"])
+        XCTAssertEqual((0..<5).map { _ in c.advance() }, ["京は", "強は", "kyouha", "今日は", "京は"])
     }
 
     func testFirstIsKeptAtTheHead() throws {
@@ -82,15 +82,15 @@ final class CandidateCycleTests: XCTestCase {
     func testSingleCandidateGoesBackToRomaji() throws {
         var c = CandidateCycle(romaji: "kyouha", leftContext: "", first: "今日は")
         c.setCandidates(["今日は"])
-        XCTAssertEqual(c.advance().text, "kyouha")
-        XCTAssertEqual(c.advance().text, "今日は")
+        XCTAssertEqual(c.advance(), "kyouha")
+        XCTAssertEqual(c.advance(), "今日は")
     }
 
     func testCandidateEqualToRomajiIsMerged() throws {
         var c = CandidateCycle(romaji: "API", leftContext: "", first: "エーピーアイ")
         c.setCandidates(["エーピーアイ", "API", "api"])
         XCTAssertEqual(c.options, ["エーピーアイ", "API", "api"])
-        XCTAssertEqual((0..<4).map { _ in c.advance().text }, ["API", "api", "エーピーアイ", "API"])
+        XCTAssertEqual((0..<4).map { _ in c.advance() }, ["API", "api", "エーピーアイ", "API"])
         var d = CandidateCycle(romaji: "API", leftContext: "", first: "API")
         d.setCandidates(["API"])
         XCTAssertEqual(d.options, ["API"])
@@ -257,19 +257,12 @@ final class SettingsTests: XCTestCase {
         XCTAssertTrue(s.postProcess.fullWidthDigits)
     }
 
-    func testInputModeAndConvertKey() throws {
+    func testConvertKey() throws {
         let suite = "aime-test-\(UUID())"
         let d = try XCTUnwrap(UserDefaults(suiteName: suite))
         defer { d.removePersistentDomain(forName: suite) }
-        // 既定: 未確定文字モード、変換キーは Space
-        XCTAssertEqual(Settings.load(from: d).inputMode, .marked)
+        // 既定: 変換キーは Space
         XCTAssertEqual(Settings.load(from: d).convertKey, .space)
-        d.set("direct", forKey: Settings.Key.inputMode)
-        XCTAssertEqual(Settings.load(from: d).inputMode, .direct)
-        d.set("Marked", forKey: Settings.Key.inputMode)
-        XCTAssertEqual(Settings.load(from: d).inputMode, .marked)
-        d.set("bogus", forKey: Settings.Key.inputMode)
-        XCTAssertEqual(Settings.load(from: d).inputMode, .marked)
         d.set("option+space", forKey: Settings.Key.convertKey)
         XCTAssertEqual(Settings.load(from: d).convertKey, ConvertKey.parse("option+space"))
         d.set("tab", forKey: Settings.Key.convertKey)
@@ -280,24 +273,18 @@ final class SettingsTests: XCTestCase {
         XCTAssertEqual(Settings.load(from: d).convertKey, .space)
     }
 
-    func testLegacyDirectConvertKeyIsMigrated() throws {
+    func testOldInputModeAndDirectConvertKeyAreIgnored() throws {
         let suite = "aime-test-\(UUID())"
         let d = try XCTUnwrap(UserDefaults(suiteName: suite))
         defer { d.removePersistentDomain(forName: suite) }
-        // convertKey が未設定で directConvertKey があれば、その値を使う
-        d.set("ctrl+j", forKey: Settings.Key.legacyDirectConvertKey)
-        XCTAssertEqual(Settings.load(from: d).convertKey, ConvertKey.parse("ctrl+j"))
-        d.set("tab", forKey: Settings.Key.legacyDirectConvertKey)
-        XCTAssertEqual(Settings.load(from: d).convertKey, .tab)
-        // convertKey があればそちらが優先
-        d.set("f13", forKey: Settings.Key.convertKey)
-        XCTAssertEqual(Settings.load(from: d).convertKey, ConvertKey.parse("f13"))
-        // 以前の値が不正なら警告して既定
-        d.removeObject(forKey: Settings.Key.convertKey)
-        d.set("ctl+j", forKey: Settings.Key.legacyDirectConvertKey)
+        // 廃止した設定（直接モード）が残っていても、エラー・警告にせず無視する
+        d.set("direct", forKey: "inputMode")
+        d.set("bogus", forKey: "inputMode")
+        d.set(1, forKey: "inputMode")
+        d.set("ctrl+j", forKey: "directConvertKey")
         let s = Settings.load(from: d)
         XCTAssertEqual(s.convertKey, .space)
-        XCTAssertTrue(s.invalidValues.first?.contains("directConvertKey") ?? false)
+        XCTAssertEqual(s.invalidValues, [])
     }
 
     func testInvalidValuesAreReported() throws {
@@ -305,33 +292,16 @@ final class SettingsTests: XCTestCase {
         let d = try XCTUnwrap(UserDefaults(suiteName: suite))
         defer { d.removePersistentDomain(forName: suite) }
         XCTAssertEqual(Settings.load(from: d).invalidValues, [])
-        d.set("direct", forKey: Settings.Key.inputMode)
         d.set("ctrl+j", forKey: Settings.Key.convertKey)
         d.set(true, forKey: Settings.Key.fullWidthDigits)
         d.set(3, forKey: Settings.Key.candidateCount)
         XCTAssertEqual(Settings.load(from: d).invalidValues, [])
         // 打ち間違い
-        d.set("dirct", forKey: Settings.Key.inputMode)
         d.set("ctl+j", forKey: Settings.Key.convertKey)
-        let s = Settings.load(from: d)
-        XCTAssertEqual(s.inputMode, .marked)
-        XCTAssertEqual(s.convertKey, .space)
-        XCTAssertEqual(s.invalidValues.count, 2)
-        XCTAssertTrue(s.invalidValues[0].contains("dirct"))
-        XCTAssertTrue(s.invalidValues[1].contains("ctl+j"))
-    }
-
-    func testInvalidConvertKeyTypeWithValidLegacyValue() throws {
-        let suite = "aime-test-\(UUID())"
-        let d = try XCTUnwrap(UserDefaults(suiteName: suite))
-        defer { d.removePersistentDomain(forName: suite) }
-        // convertKey が不正な型で、以前の directConvertKey が有効: convertKey が優先されるので space と警告
-        d.set(5, forKey: Settings.Key.convertKey)
-        d.set("ctrl+j", forKey: Settings.Key.legacyDirectConvertKey)
         let s = Settings.load(from: d)
         XCTAssertEqual(s.convertKey, .space)
         XCTAssertEqual(s.invalidValues.count, 1)
-        XCTAssertTrue(s.invalidValues[0].contains("convertKey"))
+        XCTAssertTrue(s.invalidValues[0].contains("ctl+j"))
     }
 
     func testMoreWrongTypes() throws {
@@ -340,14 +310,12 @@ final class SettingsTests: XCTestCase {
         defer { d.removePersistentDomain(forName: suite) }
         d.set(true, forKey: Settings.Key.candidateCount)   // 真偽値
         d.set(42, forKey: Settings.Key.modelPath)          // 数値
-        d.set(1, forKey: Settings.Key.inputMode)           // 数値
         d.set(1, forKey: Settings.Key.fullWidthDigits)     // 整数（-bool でない）
         var s = Settings.load(from: d)
         XCTAssertEqual(s.candidateCount, Settings.defaultCandidateCount)
         XCTAssertEqual(s.modelPath, Settings.defaultModelPath)
-        XCTAssertEqual(s.inputMode, .marked)
         XCTAssertFalse(s.postProcess.fullWidthDigits)
-        XCTAssertEqual(s.invalidValues.count, 4)
+        XCTAssertEqual(s.invalidValues.count, 3)
         d.set(3.5, forKey: Settings.Key.candidateCount)    // 小数
         s = Settings.load(from: d)
         XCTAssertEqual(s.candidateCount, Settings.defaultCandidateCount)
@@ -355,12 +323,10 @@ final class SettingsTests: XCTestCase {
         // 正しい型（設定ウィンドウからの書き込み。整数 1 が残っていても真偽値に置き換わる）
         SettingsEditor.setCandidateCount(7, in: d)
         SettingsEditor.setModelPath("/tmp/m.gguf", in: d)
-        SettingsEditor.setInputMode(.direct, in: d)
         SettingsEditor.setFullWidthDigits(true, in: d)
         s = Settings.load(from: d)
         XCTAssertEqual(s.candidateCount, 7)
         XCTAssertEqual(s.modelPath, "/tmp/m.gguf")
-        XCTAssertEqual(s.inputMode, .direct)
         XCTAssertTrue(s.postProcess.fullWidthDigits)
         XCTAssertEqual(s.invalidValues, [])
     }

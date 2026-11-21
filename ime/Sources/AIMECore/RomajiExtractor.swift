@@ -15,36 +15,6 @@ public enum RomajiExtractor {
     public static func isRomajiScalar(_ s: Unicode.Scalar) -> Bool {
         s.value >= 0x21 && s.value <= 0x7E
     }
-
-    public struct Result: Equatable {
-        /// 変換対象のローマ字列（末尾から連続する ASCII 印字可能文字、空白を除く）。
-        public var romaji: String
-        /// ローマ字列の直前にある既存テキスト（最大 `maxLeftContextLength` スカラー）。空のこともある。
-        public var leftContext: String
-        /// ローマ字列の UTF-16 長。クライアント上の置換範囲の計算に使う。
-        public var romajiUTF16Length: Int { romaji.utf16.count }
-
-        public init(romaji: String, leftContext: String) {
-            self.romaji = romaji
-            self.leftContext = leftContext
-        }
-    }
-
-    /// 直接モード用: `textBeforeCursor`（カーソル直前までのテキスト）から、末尾のローマ字列と左文脈を切り出す。
-    /// ローマ字列が空なら nil を返す。
-    public static func extract(from textBeforeCursor: String) -> Result? {
-        let scalars = textBeforeCursor.unicodeScalars
-        var start = scalars.endIndex
-        while start > scalars.startIndex {
-            let prev = scalars.index(before: start)
-            guard isRomajiScalar(scalars[prev]) else { break }
-            start = prev
-        }
-        if start == scalars.endIndex { return nil }
-        let romaji = String(scalars[start...])
-        let before = String(scalars[..<start])
-        return Result(romaji: romaji, leftContext: leftContextSuffix(before))
-    }
 }
 
 /// 未確定文字の直前の確定済みテキストから左文脈を取る。

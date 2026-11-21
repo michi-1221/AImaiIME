@@ -69,20 +69,17 @@ final class SettingsEditorTests: XCTestCase {
     }
 
     func testWritesAreReadBySettingsLoad() throws {
-        SettingsEditor.setInputMode(.direct, in: d)
         SettingsEditor.setFullWidthDigits(true, in: d)
         SettingsEditor.setModelPath("/tmp/m.gguf", in: d)
         XCTAssertEqual(SettingsEditor.setCandidateCount(7, in: d), 7)
         let s = Settings.load(from: d)
-        XCTAssertEqual(s.inputMode, .direct)
         XCTAssertTrue(s.postProcess.fullWidthDigits)
         XCTAssertEqual(s.modelPath, "/tmp/m.gguf")
         XCTAssertEqual(s.candidateCount, 7)
         XCTAssertEqual(s.invalidValues, [])
         // defaults write と同じキー・書式
-        XCTAssertEqual(d.string(forKey: "inputMode"), "direct")
-        SettingsEditor.setInputMode(.marked, in: d)
-        XCTAssertEqual(d.string(forKey: "inputMode"), "marked")
+        XCTAssertEqual(d.bool(forKey: "fullWidthDigits"), true)
+        XCTAssertEqual(d.string(forKey: "modelPath"), "/tmp/m.gguf")
     }
 
     func testCandidateCountIsClamped() throws {
@@ -103,22 +100,33 @@ final class SettingsEditorTests: XCTestCase {
         // 既定に戻す
         // space（修飾キーなし）も記録できる
         XCTAssertEqual(try SettingsEditor.recordConvertKey(keyCode: 49, modifiers: [], in: d).get(), .space)
-        // 既定に戻す（以前の directConvertKey も消す）
-        d.set("ctrl+j", forKey: "directConvertKey")
+        // 既定に戻す
         SettingsEditor.resetConvertKey(in: d)
         XCTAssertNil(d.object(forKey: "convertKey"))
-        XCTAssertNil(d.object(forKey: "directConvertKey"))
         XCTAssertEqual(Settings.load(from: d).convertKey, .space)
+    }
+
+    func testRecordModifierKey() throws {
+        let saved = SettingsEditor.recordModifierKey(.leftOption, in: d)
+        XCTAssertEqual(saved.description, "leftoption")
+        XCTAssertEqual(d.string(forKey: "convertKey"), "leftoption")
+        XCTAssertEqual(Settings.load(from: d).convertKey, saved)
+        XCTAssertEqual(Settings.load(from: d).convertKey.modifierKey, .leftOption)
+        // 通常のキーの記録は、修飾キー単独の設定を置き換える
+        XCTAssertEqual(try SettingsEditor.recordConvertKey(keyCode: 49, modifiers: .option, in: d).get().description, "option+space")
+        XCTAssertNil(Settings.load(from: d).convertKey.modifierKey)
+        // 修飾キーのキー番号を keyDown として記録することはできない
+        XCTAssertEqual(SettingsEditor.recordConvertKey(keyCode: 54, modifiers: [], in: d), .failure(.unsupportedKey))
+        XCTAssertEqual(SettingsEditor.recordConvertKey(keyCode: KeyStroke.Code.escape, modifiers: [], in: d),
+                       .failure(.needsModifier("Esc")))
     }
 
     func testExternalInvalidValuesShowDefaultsWithWarnings() throws {
         // defaults write で不正な値が入っている
-        d.set("dirct", forKey: "inputMode")
         d.set("ctl+j", forKey: "convertKey")
         let s = Settings.load(from: d)
-        XCTAssertEqual(s.inputMode, .marked)
         XCTAssertEqual(s.convertKey, .space)
-        XCTAssertEqual(s.invalidValues.count, 2)
+        XCTAssertEqual(s.invalidValues.count, 1)
     }
 
     func testModelPathWarning() throws {

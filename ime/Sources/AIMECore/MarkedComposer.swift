@@ -6,7 +6,7 @@ public enum ComposerKey: Equatable {
     case char(String)
     case space
     case backspace
-    /// 変換キー（未確定文字モードでは Tab。直接モードの未確定文字では `directConvertKey`）
+    /// 変換キー（`convertKey`）
     case convert
     case enter
     case escape
@@ -135,7 +135,7 @@ public struct MarkedComposer: Equatable {
                 }
                 c.setCandidates(list)
             }
-            let next = c.advance().text
+            let next = c.advance()
             cycle = c
             return ComposerOutput(marked: next)
         case .escape:

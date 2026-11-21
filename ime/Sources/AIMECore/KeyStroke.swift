@@ -34,14 +34,11 @@ public struct KeyStroke: Equatable {
     public var modifiers: KeyModifiers
     /// `NSEvent.characters`
     public var characters: String?
-    /// 打鍵の時点のクライアントの `selectedRange()`。取得できなければ nil（直接モードの打鍵バッファで使う）。
-    public var selectedRange: NSRange?
 
-    public init(keyCode: UInt16, modifiers: KeyModifiers = [], characters: String?, selectedRange: NSRange? = nil) {
+    public init(keyCode: UInt16, modifiers: KeyModifiers = [], characters: String?) {
         self.keyCode = keyCode
         self.modifiers = modifiers
         self.characters = characters
-        self.selectedRange = selectedRange
     }
 
     public enum Code {
