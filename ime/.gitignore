@@ -1,0 +1,7 @@
+# 外部から取得するもの（scripts/fetch-deps.sh で再取得できる）
+/vendor/
+/models/
+# ビルド成果物
+/.build/
+/build/
+/.swiftpm/

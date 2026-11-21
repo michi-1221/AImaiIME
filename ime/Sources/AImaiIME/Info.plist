@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>ja</string>
+	<key>CFBundleExecutable</key>
+	<string>AImaiIME</string>
+	<key>CFBundleIdentifier</key>
+	<string>dev.aimai.inputmethod.AImaiIME</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>AImai IME</string>
+	<key>CFBundleDisplayName</key>
+	<string>AImai IME</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>0.1.0</string>
+	<key>CFBundleVersion</key>
+	<string>1</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>14.0</string>
+	<key>LSUIElement</key>
+	<true/>
+	<key>NSPrincipalClass</key>
+	<string>NSApplication</string>
+	<key>InputMethodConnectionName</key>
+	<string>dev.aimai.inputmethod.AImaiIME_Connection</string>
+	<key>InputMethodServerControllerClass</key>
+	<string>AIMEInputController</string>
+	<key>TISInputSourceID</key>
+	<string>dev.aimai.inputmethod.AImaiIME</string>
+	<key>TISIntendedLanguage</key>
+	<string>ja</string>
+	<key>tsInputMethodCharacterRepertoireKey</key>
+	<array>
+		<string>Latn</string>
+		<string>Hira</string>
+		<string>Kana</string>
+		<string>Hani</string>
+	</array>
+	<key>tsInputMethodIconFileKey</key>
+	<string>icon.tiff</string>
+	<key>TISIconIsTemplate</key>
+	<true/>
+</dict>
+</plist>

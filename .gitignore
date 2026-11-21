@@ -1,0 +1,30 @@
+# 公開するのは IME のコード・インストールスクリプト・紹介用の README と GIF・ライセンスだけ。
+# それ以外（学習データ・学習/評価のコード・評価結果・記録・動画・サイトのソースなど）はすべて除外する。
+/*
+!/.gitignore
+!/README.md
+!/LICENSE
+!/install.sh
+!/docs/
+!/ime/
+
+# docs/ は GIF だけ
+/docs/*
+!/docs/demo.gif
+
+# ime/ はコードとスクリプトだけ（データ類は置かない）
+/ime/*
+!/ime/.gitignore
+!/ime/Package.swift
+!/ime/install.sh
+!/ime/THIRD_PARTY_NOTICES.md
+!/ime/Sources/
+!/ime/Tests/
+!/ime/scripts/
+
+.DS_Store
+*.gguf
+*.jsonl
+*.tsv
+*.mp4
+*.zip
