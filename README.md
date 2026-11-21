@@ -51,28 +51,6 @@ AImai IME をこの Mac にインストールしてください。ターミナ�
   - 直接モード: 打った文字はすぐ入力欄に入り、変換キーでカーソル直前のローマ字を日本語に置き換えます。直接の置き換えに対応していない入力欄（ターミナルなど）では、自動で未確定文字モードと同じ動きになります。
 - **変換キー**: Space のほか、Tab や ⌥Space などに変えられます。
 
-## アンインストール
-
-1. 「システム設定 > キーボード > 入力ソース」で AImai IME を外す。
-2. ターミナルで次を実行する。
-
-```sh
-rm -rf ~/Library/Input\ Methods/AImaiIME.app ~/Library/Application\ Support/AImaiIME
-defaults delete dev.aimai.inputmethod.AImaiIME 2>/dev/null
-```
-
-## ソースからビルドする
-
-Xcode のコマンドラインツール（Swift 5.10 以降）が必要です。
-
-```sh
-cd ime
-./scripts/build.sh      # ime/build/AImaiIME.app を作る（llama.cpp のビルド済みフレームワークを自動で取得）
-./install.sh            # ~/Library/Input Methods にコピーする
-```
-
-モデル（`model-q8_0.gguf`）は [Releases](https://github.com/michi-1221/AImaiIME/releases) から取得し、`~/Library/Application Support/AImaiIME/model.gguf` に置いてください。
-
 ## ライセンスとクレジット
 
 - コード: [MIT License](LICENSE)
