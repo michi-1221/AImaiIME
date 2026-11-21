@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AImai IME | 急いで打ってもちゃんと伝わる</title>
+<meta name="description" content="AImai IME は macOS 用の日本語入力。英数モードのままローマ字で文を最後まで打つ。打ち間違えても大丈夫。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Noto+Sans+JP:wght@400;700&display=swap">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header class="hero wrap">
+  <h1>AImai IME</h1>
+  <p class="lead">急いで打ってもちゃんと伝わる</p>
+
+  <div class="demo" id="demo" aria-label="入力のデモ">
+    <div class="line-wrap">
+      <p class="line" id="line" aria-live="off"></p>
+    </div>
+    <div class="kbd" id="kbd" aria-hidden="true"></div>
+  </div>
+  <noscript><p class="line">kyouhaamegafuttekitanodekasawomotte<span class="err">l</span>aerimasu → 今日は雨が降ってきたので傘を持って帰ります</p></noscript>
+
+  <div class="static" id="static" hidden></div>
+</header>
+
+<main>
+  <section class="sec wrap" id="tolerant">
+    <p class="label mono">01</p>
+    <div class="body">
+      <h2>打ち間違えても大丈夫</h2>
+      <p><b>隣のキー。</b>押したいキーの隣を押してしまっても前後の文字から読み取ります。</p>
+      <p><b>1文字多い・抜け・入れ替わり。</b>余計に打っても抜けても順番が入れ替わっても変換できます。</p>
+      <p><b>入力モードは切り替えない。</b>英数モードのまま途中で直さずに最後まで打ち切れます。</p>
+    </div>
+  </section>
+
+  <section class="sec wrap" id="speed">
+    <p class="label mono">02</p>
+    <div class="body">
+      <p class="big" aria-label="約0.5秒">約0.5秒</p>
+      <p class="cap">200字の文を変換する時間</p>
+    </div>
+  </section>
+
+  <section class="sec wrap" id="local">
+    <p class="label mono">03</p>
+    <div class="body">
+      <h2>変換するのは <span class="nb">Mac の中で動く</span><span class="nb">ローカル LLM</span></h2>
+      <p>小型の言語モデル（LLM）を Mac の上で動かしています。変換は Mac の中だけで行いネットワークを使いません。打った文章がネットワークに送られることはありません。</p>
+    </div>
+  </section>
+
+  <section class="sec wrap" id="install">
+    <p class="label mono">04</p>
+    <div class="body">
+      <h2>インストール</h2>
+      <p class="note">配布の準備中です。公開までは下のリンクは使えません。</p>
+
+      <h3>動作環境</h3>
+      <ul class="req">
+        <li><b>macOS</b>14 Sonoma 以降</li>
+        <li><b>Mac</b>Apple シリコン（M1 以降）。Intel Mac は動作を確かめていないため対象外です</li>
+        <li><b>空き容量</b>約200MB</li>
+      </ul>
+
+      <h3>ターミナルで入れる</h3>
+      <div class="code">
+        <button type="button" class="copy mono" data-target="cmd">コピー</button>
+        <pre id="cmd" class="mono">curl -fsSL https://raw.githubusercontent.com/michi-1221/AImaiIME/main/install.sh | sh</pre>
+      </div>
+
+      <h3>AI に頼む</h3>
+      <p>Claude Code などのエージェントにそのまま貼ってください。</p>
+      <div class="code">
+        <button type="button" class="copy mono" data-target="prompt">コピー</button>
+        <pre id="prompt">AImai IME をこの Mac にインストールしてください。ターミナルで curl -fsSL https://raw.githubusercontent.com/michi-1221/AImaiIME/main/install.sh | sh を実行し、終わったら入力ソースに AImai IME を追加する手順を案内してください。</pre>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="foot wrap">
+  <p class="brand mono">AImai IME</p>
+  <p>macOS 用の日本語入力</p>
+</footer>
+
+<script src="js/demo.js"></script>
+</body>
+</html>
