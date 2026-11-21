@@ -62,7 +62,7 @@ public enum StopToken {
 /// 受け取ったプロンプトを記録し、`respond` の戻り値を返す。
 public final class MockGenerator: TextGenerator {
     public private(set) var prompts: [String] = []
-    public private(set) var maxNewTokensHistory: [Int] = []
+    public private(set) var requestedMaxNewTokens: [Int] = []
     public var respond: (String) throws -> GenerationResult
     /// ビームサーチの応答（既定は空）。
     public var respondBeam: (String) throws -> [ScoredGeneration] = { _ in [] }
@@ -79,7 +79,7 @@ public final class MockGenerator: TextGenerator {
 
     public func generate(prompt: String, maxNewTokens: Int) throws -> GenerationResult {
         prompts.append(prompt)
-        maxNewTokensHistory.append(maxNewTokens)
+        requestedMaxNewTokens.append(maxNewTokens)
         return try respond(prompt)
     }
 

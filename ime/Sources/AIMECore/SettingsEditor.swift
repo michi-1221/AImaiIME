@@ -32,6 +32,7 @@ public enum SettingsEditor {
         defaults.removeObject(forKey: Settings.Key.convertKey)
     }
 
+
     public static func setFullWidthDigits(_ on: Bool, in defaults: UserDefaults = .standard) {
         replace(on, forKey: Settings.Key.fullWidthDigits, in: defaults)
     }

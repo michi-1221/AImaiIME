@@ -10,11 +10,11 @@ final class RomajiAndLeftContextTests: XCTestCase {
     }
 
     func testLeftContextSuffixCountsUnicodeScalars() throws {
-        let ctx = String(repeating: "あ", count: 30) + String(repeating: "い", count: 30)
-        XCTAssertEqual(RomajiExtractor.leftContextSuffix(ctx), String(repeating: "あ", count: 10) + String(repeating: "い", count: 30))
+        let ctx = String(repeating: "あ", count: 70) + String(repeating: "い", count: 70)
+        XCTAssertEqual(RomajiExtractor.leftContextSuffix(ctx), String(repeating: "あ", count: 30) + String(repeating: "い", count: 70))
         // 👍🏽 は1書記素だが2スカラー。"が"（か + 濁点の結合文字）も2スカラー。学習時と同じくスカラーで数える
-        let s = "👍🏽" + "か\u{3099}" + String(repeating: "ん", count: 38)
-        XCTAssertEqual(RomajiExtractor.leftContextSuffix(s), "か\u{3099}" + String(repeating: "ん", count: 38))
+        let s = "👍🏽" + "か\u{3099}" + String(repeating: "ん", count: 98)
+        XCTAssertEqual(RomajiExtractor.leftContextSuffix(s), "か\u{3099}" + String(repeating: "ん", count: 98))
     }
 
     /// 確定済みテキスト + 未確定文字の文書を模したもの
@@ -35,10 +35,10 @@ final class RomajiAndLeftContextTests: XCTestCase {
         let d = Doc(committed: "😀来週の会議で", marked: "shiryou")
         XCTAssertEqual(LeftContext.get(markedRange: d.markedRange, selectedRange: d.selectedRange, fetch: d.fetch),
                        "😀来週の会議で")
-        // 40 スカラーまで
-        let long = Doc(committed: (String(repeating: "あ", count: 50) + "い") as NSString, marked: "ka")
+        // 100 スカラーまで
+        let long = Doc(committed: (String(repeating: "あ", count: 120) + "い") as NSString, marked: "ka")
         XCTAssertEqual(LeftContext.get(markedRange: long.markedRange, selectedRange: long.selectedRange, fetch: long.fetch),
-                       String(repeating: "あ", count: 39) + "い")
+                       String(repeating: "あ", count: 99) + "い")
     }
 
     func testLeftContextIsEmptyWhenUnavailable() throws {
@@ -108,11 +108,11 @@ final class PromptBuilderTests: XCTestCase {
                        "\u{EE02}今日は\u{EE00}tenki\u{EE01}")
     }
 
-    func testContextIsTruncatedToLast40Scalars() throws {
-        let ctx = String(repeating: "x", count: 10) + String(repeating: "y", count: 40)
+    func testContextIsTruncatedToLast100Scalars() throws {
+        let ctx = String(repeating: "x", count: 10) + String(repeating: "y", count: 100)
         XCTAssertEqual(PromptBuilder.build(input: "a", leftContext: ctx),
-                       "\u{EE02}" + String(repeating: "y", count: 40) + "\u{EE00}a\u{EE01}")
-        let emoji = "😀" + String(repeating: "y", count: 39)
+                       "\u{EE02}" + String(repeating: "y", count: 100) + "\u{EE00}a\u{EE01}")
+        let emoji = "😀" + String(repeating: "y", count: 99)
         XCTAssertEqual(PromptBuilder.build(input: "a", leftContext: "z" + emoji),
                        "\u{EE02}" + emoji + "\u{EE00}a\u{EE01}")
     }
@@ -165,7 +165,7 @@ final class ConverterTests: XCTestCase {
         let out = try conv.convert(input: "2dainosa-ba-", leftContext: "本番では", options: .init())
         XCTAssertEqual(out, "2台のサーバー")
         XCTAssertEqual(mock.prompts, ["\u{EE02}本番では\u{EE00}2dainosa-ba-\u{EE01}"])
-        XCTAssertEqual(mock.maxNewTokensHistory, [Converter.maxNewTokens(forInput: "2dainosa-ba-")])
+        XCTAssertEqual(mock.requestedMaxNewTokens, [Converter.maxNewTokens(forInput: "2dainosa-ba-")])
     }
 
     func testEndToEndWithComposer() throws {

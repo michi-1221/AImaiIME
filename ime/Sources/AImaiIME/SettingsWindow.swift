@@ -137,6 +137,7 @@ final class SettingsViewModel: ObservableObject {
         reload()
     }
 
+
     func setCandidateCount(_ n: Int) {
         SettingsEditor.setCandidateCount(n, in: defaults)
         reload()
@@ -209,6 +210,7 @@ struct SettingsView: View {
                     Text("候補数: \(model.candidateCount)（続けて変換キーを押したときの候補の数）")
                 }
             }
+
 
             Section("モデルファイル") {
                 Text(model.modelPath)

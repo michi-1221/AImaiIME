@@ -32,6 +32,7 @@ final class AIMEInputController: IMKInputController {
         }
     }
 
+
     private typealias Client = IMKTextInput & NSObjectProtocol
 
     override func recognizedEvents(_ sender: Any!) -> Int {
@@ -94,6 +95,12 @@ final class AIMEInputController: IMKInputController {
         }
         modifierTap.keyDown()
         guard let client else { return false }
+        // JIS キーボードの「英数」（102）と「かな」（104）は、文字として空白を持って届くことがある。
+        // 文字を入力するキーではないので、未確定文字があれば確定し、キーはアプリに渡さない（空白が入らないように）
+        if event.keyCode == 102 || event.keyCode == 104 {
+            commitMarked(client: client)
+            return true
+        }
 
         let mods = KeyModifiers(modifierFlagsRawValue: event.modifierFlags.rawValue)
         let stroke = KeyStroke(keyCode: event.keyCode, modifiers: mods, characters: event.characters)
@@ -268,7 +275,8 @@ final class AIMEInputController: IMKInputController {
         client.insertText(text, replacementRange: NSRange(location: NSNotFound, length: 0))
     }
 
-    /// 未確定文字の直前の確定済みテキスト（最大 40 スカラー）。取れないアプリでは空（エラーにしない）。
+
+    /// 未確定文字の直前の確定済みテキスト（最大 100 スカラー）。取れないアプリでは空（エラーにしない）。
     private func leftContext(client: Client) -> String {
         LeftContext.get(markedRange: client.markedRange(), selectedRange: client.selectedRange(), fetch: fetcher(client))
     }
